@@ -1,0 +1,16 @@
+{
+  "name": "aidlens",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.12.2",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @aidlens/api --filter @aidlens/web dev",
+    "dev:web": "pnpm --filter @aidlens/web dev",
+    "dev:api": "pnpm --filter @aidlens/api dev",
+    "build": "pnpm -r build",
+    "test": "pnpm --filter @aidlens/api test && pnpm test:contracts",
+    "test:contracts": "forge test --root contracts",
+    "typecheck": "pnpm -r typecheck",
+    "keys:encryption": "node scripts/generate-encryption-keys.mjs"
+  }
+}

@@ -1,0 +1,96 @@
+export const aidLensAbi = [
+  {
+    type: 'event',
+    name: 'ClaimSubmitted',
+    inputs: [
+      { name: 'claimId', type: 'uint256', indexed: true },
+      { name: 'claimant', type: 'address', indexed: true },
+      { name: 'evidenceRoot', type: 'bytes32', indexed: true },
+      { name: 'publicRoot', type: 'bytes32', indexed: false },
+      { name: 'districtCode', type: 'uint16', indexed: false },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'donate',
+    stateMutability: 'payable',
+    inputs: [],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'submitClaim',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'evidenceRoot', type: 'bytes32' },
+      { name: 'publicRoot', type: 'bytes32' },
+      { name: 'districtCode', type: 'uint16' },
+    ],
+    outputs: [{ name: 'claimId', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'recordAssessment',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'claimId', type: 'uint256' },
+      { name: 'assessmentRoot', type: 'bytes32' },
+      { name: 'receiptHash', type: 'bytes32' },
+      { name: 'severity', type: 'uint8' },
+      { name: 'recommendedAmount', type: 'uint96' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'approveAndPay',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'claimId', type: 'uint256' },
+      { name: 'amount', type: 'uint96' },
+      { name: 'reviewNoteHash', type: 'bytes32' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'requestMoreInfo',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'claimId', type: 'uint256' },
+      { name: 'noteHash', type: 'bytes32' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'rejectClaim',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'claimId', type: 'uint256' },
+      { name: 'reasonHash', type: 'bytes32' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'claimCount',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'totalDonated',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'totalPaid',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+] as const
