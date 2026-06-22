@@ -1,158 +1,107 @@
 # AidLens
 
-AidLens is an English-first, mobile-first synthetic flood-relief workflow for the 0G Zero Cup. A claimant submits private evidence, 0G Compute triages observable damage, an NGO reviewer makes the final decision, and donors can inspect redacted onchain receipts.
+AidLens is an AI-assisted flood relief workflow for the 0G Zero Cup. It lets a claimant submit private damage evidence, asks 0G Compute to triage observable damage with TEE verification, and lets an NGO reviewer make the final onchain payout decision.
 
-> Hackathon prototype only. All claims, images, narratives, locations, and metrics are synthetic unless explicitly labelled as live onchain artifacts. AidLens is not a production relief, insurance, fraud-detection, or damage-assessment system.
+> Hackathon prototype: all households, locations, images, narratives, and dashboard metrics are synthetic unless explicitly marked as live onchain artifacts. AidLens is not a production relief, insurance, fraud-detection, or damage-assessment system.
 
-## Current live demo snapshot
+![AidLens cover](apps/web/public/brand/aidlens-thumbnail.png)
 
-Last updated: 2026-06-22.
+## What AidLens Does
 
-- App: `http://localhost:5173`
-- API: `http://localhost:8787`
-- API mode: `live`
+Disaster relief teams often need to move quickly without publishing sensitive evidence from affected households. AidLens demonstrates a privacy-aware review path:
+
+1. A claimant submits flood damage images and an optional voice report.
+2. Evidence is encrypted and stored through 0G Storage.
+3. 0G Compute runs vision/audio inference and returns a verifiable assessment receipt.
+4. Policy code converts severity into a recommended payout.
+5. An NGO assessor records the assessment onchain.
+6. An NGO reviewer makes the final human decision and approves the native 0G payout.
+7. Donors and auditors can inspect redacted roots, transaction links, and public totals without seeing private evidence.
+
+The goal is not to replace human judgment. AidLens is a decision-support layer that keeps evidence private, makes AI use auditable, and leaves relief decisions with trusted reviewers.
+
+## Why 0G
+
+AidLens uses 0G as the core trust layer, not as a decorative integration.
+
+- **0G Storage** stores private evidence bundles and public redacted metadata roots.
+- **0G Compute Router** runs the AI triage flow with `verify_tee=true`.
+- **0G Galileo testnet** anchors claim state, assessment roots, and payouts.
+- **0G ChainScan / StorageScan** provide public audit links for the demo receipts.
+
+In preview mode, AidLens deliberately labels the run as synthetic and non-payable. It does not fake TEE verification or onchain settlement.
+
+## Live Snapshot
+
 - Chain: 0G Galileo testnet, chain id `16602`
 - Storage: 0G Galileo Turbo testnet
-- Compute: 0G Compute Router mainnet
+- Compute: 0G Compute Router
 - Vision model: `qwen3-vl-30b`
 - Audio model: `whisper-large-v3`
 - Contract: [`0x066664cE141ccb20e77bb37ca55E1311254a3780`](https://chainscan-galileo.0g.ai/address/0x066664cE141ccb20e77bb37ca55E1311254a3780)
 - Deploy tx: [`0x1dcbc785698cf266f58c3d2f2392c7547195a4a22230f330fe6621bb758b660b`](https://chainscan-galileo.0g.ai/tx/0x1dcbc785698cf266f58c3d2f2392c7547195a4a22230f330fe6621bb758b660b)
-- Admin / assessor / reviewer wallet: `0x93FD8424a35C6590afF85Fa59dC4289aA44B0568`
 
-Live smoke claim #1 completed successfully:
+Smoke claim #1 was completed end to end:
 
 - Evidence root: `0xc96feef58581f28b61c44f67d72714d68bdf73851f9b3bf1f3e1787010729a71`
 - Public metadata root: `0x462c4041f43eab7b533daa9c9cc5ca06d56990f08c9fb68bb221e11e15ad835f`
-- Submit tx: [`0x63db31e39813d806e26d8b15dd8993de78982ad98df4d952e477a8e6687ae484`](https://chainscan-galileo.0g.ai/tx/0x63db31e39813d806e26d8b15dd8993de78982ad98df4d952e477a8e6687ae484)
 - Assessment root: `0x4231a0b215f99c248c31b9eb0ad53dd5b4ee16bf57ed8250aaa56cdb4c826f52`
 - Receipt hash: `0x6c539eb9846174edccfe726541e0262b0fcffa4a06f6162c26bcf410c8b34ddf`
+- Submit tx: [`0x63db31e39813d806e26d8b15dd8993de78982ad98df4d952e477a8e6687ae484`](https://chainscan-galileo.0g.ai/tx/0x63db31e39813d806e26d8b15dd8993de78982ad98df4d952e477a8e6687ae484)
 - Assessment tx: [`0xe792f0586ed06e7ced40ea319b9b93cc4d00f34f51944bcaf7efe06281e4f881`](https://chainscan-galileo.0g.ai/tx/0xe792f0586ed06e7ced40ea319b9b93cc4d00f34f51944bcaf7efe06281e4f881)
 - Payout tx: [`0xb946495f8bd0ce7c316fdbddda57790aface34c70742a558e56d2030b02eeb83`](https://chainscan-galileo.0g.ai/tx/0xb946495f8bd0ce7c316fdbddda57790aface34c70742a558e56d2030b02eeb83)
-- Severity: `4`
-- Policy recommendation: `8 0G`
-- Smoke payout: `0.1 0G` with reviewer override reason hash, because the contract was funded with `1 0G`
-- Contract totals after smoke: donated `1 0G`, paid `0.1 0G`, balance `0.9 0G`
 
-Full handoff details are in [context.md](</Volumes/Kingston/0G hack/context.md>).
+The smoke payout used a small reviewer override amount because the demo contract was funded with `1 0G`.
 
-## Demo flow
+## Product Walkthrough
 
-1. Donor funds `AidLensReliefFund` with testnet 0G.
-2. Claimant signs an expiring evidence manifest and submits one to three resized images plus an optional 60-second voice report.
-3. Private evidence is stored on 0G Storage; only redacted district-level metadata is public.
-4. Whisper transcribes audio and Qwen3-VL assesses the claim through 0G Compute Router with `verify_tee=true`.
-5. The Router synchronously validates the provider TEE signature and returns `x_0g_trace.tee_verified`; the API also attempts independent SDK verification with `processResponse(provider, chatID)` and stores the verification source/error in the receipt.
-6. Policy code, not the model, maps severity 1-5 to `1 / 3 / 5 / 8 / 12` 0G.
-7. An NGO assessor records the verified result; an NGO reviewer may then approve and sign the native-token payout.
-8. `/claim/:id` and `/transparency` expose redacted roots and ChainScan/StorageScan links.
+### Claimant
 
-Preview mode is deliberately non-payable and never displays a fake TEE badge.
+The claimant opens `/claim`, connects a wallet, fills in household and district details, uploads evidence, and signs an expiring evidence manifest. When live 0G configuration is available, the app waits for the `ClaimSubmitted` event and stores the real onchain claim id for the browser session.
 
-## Repository
+### NGO Assessor
+
+The NGO workspace at `/ngo` lets an assessor select the latest submitted claim, run the 0G Compute assessment, review the TEE receipt status, and record the assessment root onchain.
+
+### NGO Reviewer
+
+After assessment, a reviewer can approve payout, request more information, or reject the claim. The smart contract enforces roles, status transitions, payout caps, and double-payout prevention.
+
+### Public Transparency
+
+The `/transparency` page shows redacted public outcomes and live contract totals when the contract is configured. Private evidence, transcripts, exact GPS, health details, encryption keys, and raw media are never exposed in the public receipt.
+
+## Architecture
 
 ```text
-apps/web     React 19 + Vite + TypeScript + Tailwind/shadcn + wagmi + MapLibre
-apps/api     Fastify + Zod + 0G Storage SDK + 0G Compute SDK + raw Router requests
-contracts    Solidity 0.8.24 + Foundry, EVM Cancun
+apps/web
+  React 19, Vite, TypeScript, Tailwind, shadcn/ui, wagmi, viem, MapLibre
+
+apps/api
+  Fastify, Zod, multipart evidence upload, 0G Storage adapter, 0G Compute adapter
+
+contracts
+  Solidity 0.8.24, Foundry, AidLensReliefFund
 ```
 
-The contract is the source of claim and treasury state. Evidence and assessments live on 0G Storage. There is no database.
+The contract is the source of claim and treasury state. Evidence and assessments live on 0G Storage. The app does not use a database.
 
-## Run locally
-
-Requirements: Node 22+, pnpm 10+, and Foundry.
-
-```bash
-pnpm install
-pnpm dev
+```mermaid
+flowchart LR
+  A["Claimant wallet"] --> B["AidLens web app"]
+  B --> C["AidLens API"]
+  C --> D["0G Storage"]
+  C --> E["0G Compute Router"]
+  E --> C
+  C --> F["NGO assessment payload"]
+  F --> G["AidLensReliefFund contract"]
+  G --> H["0G ChainScan"]
+  D --> I["0G StorageScan"]
 ```
 
-Open `http://localhost:5173`. The API runs on `http://localhost:8787`.
+## Smart Contract
 
-With no secrets, the API uses in-memory Storage and deterministic synthetic assessment. That mode is useful for UI work but cannot produce an onchain assessment or payout.
-
-Run checks:
-
-```bash
-pnpm typecheck
-pnpm --filter @aidlens/web lint
-pnpm test
-pnpm build
-```
-
-Check live service status:
-
-```bash
-curl -s http://localhost:8787/v1/0g/status | jq
-```
-
-## Live 0G configuration
-
-Never commit `.env`. The current `.env` is local-only and gitignored. Rotate the Compute API key and service wallet after public demos because they were handled during rapid hackathon setup.
-
-Server variables:
-
-- `ZERO_G_COMPUTE_API_KEY`: funded 0G Compute Router mainnet API key.
-- `ZERO_G_COMPUTE_BASE_URL`: `https://router-api.0g.ai/v1`
-- `ZERO_G_VISION_MODEL`: `qwen3-vl-30b`
-- `ZERO_G_AUDIO_MODEL`: `whisper-large-v3`
-- `ZERO_G_RPC_URL`: `https://evmrpc-testnet.0g.ai`
-- `ZERO_G_MAINNET_RPC_URL`: `https://evmrpc.0g.ai`
-- `ZERO_G_STORAGE_INDEXER`: `https://indexer-storage-testnet-turbo.0g.ai`
-- `ZERO_G_SERVICE_PRIVATE_KEY`: funded service wallet for Storage, contract admin/reviewer in the current snapshot, and SDK verification attempts.
-- `RELIEF_FUND_ADDRESS`: deployed Galileo contract.
-- `NGO_ENCRYPTION_PRIVATE_KEY`: server-only P-256 private key for decrypting client-sealed evidence.
-- `WEB_ORIGIN`: exact web origin for CORS.
-
-Web variables:
-
-- `VITE_API_URL`
-- `VITE_0G_CHAIN_ID`
-- `VITE_0G_RPC_URL`
-- `VITE_RELIEF_FUND_ADDRESS`
-- `VITE_NGO_ENCRYPTION_PUBLIC_KEY`
-
-Generate browser encryption keys:
-
-```bash
-pnpm keys:encryption
-```
-
-The browser encrypts intake and evidence using AES-256-GCM, derives a wrapping key with ephemeral ECDH P-256 + HKDF, and seals the content key for the NGO worker. The worker decrypts only in memory immediately before the 0G inference request.
-
-If the public key is not configured, AidLens uses the snapshot path: plaintext arrives over TLS and the service encrypts it with ECIES before the 0G Storage upload. The UI labels which path is active.
-
-## Deploy the contract
-
-From `contracts/`:
-
-```bash
-set -a
-source ../.env
-set +a
-export DEPLOYER_PRIVATE_KEY="$ZERO_G_SERVICE_PRIVATE_KEY"
-export AIDLENS_ADMIN_ADDRESS=$(cast wallet address --private-key "$ZERO_G_SERVICE_PRIVATE_KEY")
-forge script script/Deploy.s.sol:DeployAidLens --rpc-url "$ZERO_G_RPC_URL" --broadcast
-```
-
-The admin initially receives admin, assessor, and reviewer roles. The default payout cap is `12 0G`. For a public demo, either fund the contract above the policy recommendation or use a reviewer override with a reason hash.
-
-## API
-
-- `GET /health`
-- `GET /v1/0g/status`
-- `POST /v1/evidence`: multipart upload with wallet signature; validates MIME/signature/size; uploads private evidence and public metadata to 0G Storage.
-- `POST /v1/assessments`: assessor-signed request; downloads/decrypts evidence, runs 0G Compute, uploads assessment, and returns an onchain payload if payable.
-
-Privacy guardrails:
-
-- API does not intentionally log evidence, transcript, precise GPS, base64 payloads, signatures, or encryption keys.
-- Public contract and public assessment exclude original images, audio, transcript, narration, precise GPS, health data, and keys.
-
-## Contract
-
-`AidLensReliefFund` exposes:
+`AidLensReliefFund` supports the full relief lifecycle:
 
 ```solidity
 donate()
@@ -171,7 +120,7 @@ Roles:
 - `ASSESSOR_ROLE`
 - `REVIEWER_ROLE`
 
-Status enum:
+Claim statuses:
 
 ```text
 0 Submitted
@@ -182,43 +131,124 @@ Status enum:
 5 Cancelled
 ```
 
-Safety checks include role enforcement, state transitions, payout cap, duplicate evidence roots, double-payout prevention, insufficient-balance checks, checks-effects-interactions, and a reentrancy guard.
+Safety checks include role enforcement, valid state transitions, duplicate evidence-root prevention, payout caps, insufficient-balance checks, checks-effects-interactions, and a reentrancy guard.
 
-## Privacy and trust boundary
+## API Surface
 
-0G TEE attestation proves model inference. In Router mode, `tee_verified=true` means the 0G Router says it verified the provider signature; AidLens also records whether independent SDK verification succeeded. It does not prove that the browser, API, wallet, or entire backend runs inside a TEE.
+- `GET /health`
+- `GET /v1/0g/status`
+- `POST /v1/evidence`
+- `POST /v1/assessments`
 
-Current smoke test note: the Router returned `tee_verified=true`; the SDK `processResponse(provider, chatID)` attempt could not fetch a public signature from the selected provider endpoint and returned `getting signature error` / `chat_id_not_found`. The receipt therefore records `verificationSource: "router-verified"` and `independentTeeVerified: null`. Do not pitch this as an independent SDK-verified run unless that later succeeds.
+`POST /v1/evidence` validates the claimant signature, uploads private evidence and public metadata, and returns roots for the onchain claim.
 
-Human reviewers remain responsible for every decision and payout.
+`POST /v1/assessments` requires an assessor signature, downloads/decrypts evidence, runs 0G Compute, uploads the assessment receipt, and returns the payload needed to record the result onchain.
 
-## Known demo gotchas
+## Run Locally
 
-- Existing smoke claim #1 is already `Paid`. Use a new claim for another end-to-end demo.
-- The smoke claim was submitted by CLI/API using the admin wallet, not through browser session storage. `/transparency` reads live totals from the contract, but `/claim/:id` and `/ngo` still use browser `sessionStorage` for private per-claim evidence details.
-- For the UI-driven demo, submit a fresh claim through `/claim` in the browser. The app now waits for the `ClaimSubmitted` receipt, stores the real onchain claim id, and opens `/ngo` against that claim from the same browser session.
-- The current contract balance is `0.9 0G`, not enough for an `8 0G` policy payout. Top up the contract or override the payout amount with a reason hash.
-- Public 0G Storage indexing can lag. Private uploads wait for finality so the worker can read evidence; public metadata/assessment uploads return faster and may appear on explorers later.
-- The Codex in-app browser automation tab crashed once during verification, but the web server itself returned HTTP `200`. Reload the app manually if the embedded browser looks blank.
+Requirements:
 
-## Deploy web and API
+- Node.js 22+
+- pnpm 10+
+- Foundry
 
-- Vercel: use `apps/web` as the project root, build command `pnpm build`, output `dist`, then set only `VITE_*` variables.
-- Railway: deploy from the repository root; `railway.json` uses `apps/api/Dockerfile`. Set server secrets in Railway and never expose them to Vite.
+Install and start both apps:
 
-## Final-lock checklist
+```bash
+pnpm install
+pnpm dev
+```
 
-- Run all checks: typecheck, lint, API tests, Foundry tests, build.
-- Confirm `/v1/0g/status` is `live`.
-- Confirm contract has enough testnet 0G for the planned payout.
-- Submit a fresh synthetic claim through `/claim`.
-- Verify private evidence root and public root.
-- Run assessment from `/ngo`; record assessment only if TEE verification is positive.
-- Approve payout with NGO wallet.
-- Save ChainScan links, Storage roots, receipt hash, assessment root, and final balances.
-- Label all synthetic data and any replay clearly.
+Open:
 
-## Useful references
+- Web app: `http://localhost:5173`
+- API: `http://localhost:8787`
+
+Without live secrets, the API falls back to in-memory storage and deterministic synthetic assessment. That mode is useful for UI review, but it cannot create a live 0G assessment or payout.
+
+Run checks:
+
+```bash
+pnpm typecheck
+pnpm --filter @aidlens/web lint
+pnpm test
+pnpm build
+```
+
+Check service mode:
+
+```bash
+curl -s http://localhost:8787/v1/0g/status | jq
+```
+
+## Configuration
+
+Server environment variables:
+
+- `ZERO_G_COMPUTE_API_KEY`
+- `ZERO_G_COMPUTE_BASE_URL`
+- `ZERO_G_VISION_MODEL`
+- `ZERO_G_AUDIO_MODEL`
+- `ZERO_G_RPC_URL`
+- `ZERO_G_MAINNET_RPC_URL`
+- `ZERO_G_STORAGE_INDEXER`
+- `ZERO_G_SERVICE_PRIVATE_KEY`
+- `RELIEF_FUND_ADDRESS`
+- `NGO_ENCRYPTION_PRIVATE_KEY`
+- `WEB_ORIGIN`
+
+Web environment variables:
+
+- `VITE_API_URL`
+- `VITE_0G_CHAIN_ID`
+- `VITE_0G_RPC_URL`
+- `VITE_RELIEF_FUND_ADDRESS`
+- `VITE_NGO_ENCRYPTION_PUBLIC_KEY`
+
+Generate browser encryption keys:
+
+```bash
+pnpm keys:encryption
+```
+
+The browser encryption path uses AES-256-GCM for evidence content and ECDH P-256 + HKDF to seal the content key for the NGO worker. If the browser public key is not configured, AidLens uses the server-side snapshot path and labels the active trust boundary in the UI.
+
+## Deploy Notes
+
+Deploy the web app from `apps/web` with only `VITE_*` variables exposed to the browser. Deploy the API separately and keep all server secrets out of the frontend bundle.
+
+The repository includes:
+
+- `apps/web/vercel.json` for the Vite frontend.
+- `railway.json` and `apps/api/Dockerfile` for the Fastify API.
+- Foundry scripts under `contracts/script`.
+
+To deploy the contract from `contracts/`:
+
+```bash
+set -a
+source ../.env
+set +a
+export DEPLOYER_PRIVATE_KEY="$ZERO_G_SERVICE_PRIVATE_KEY"
+export AIDLENS_ADMIN_ADDRESS=$(cast wallet address --private-key "$ZERO_G_SERVICE_PRIVATE_KEY")
+forge script script/Deploy.s.sol:DeployAidLens --rpc-url "$ZERO_G_RPC_URL" --broadcast
+```
+
+## Privacy And Trust Boundary
+
+AidLens treats TEE verification as proof about the model inference path, not proof that the entire web app, backend, wallet, or human review process ran inside a TEE.
+
+The demo receipt records whether the 0G Router reported TEE verification and whether the independent SDK verification attempt succeeded. In the current smoke run, the Router returned `tee_verified=true`; the independent SDK lookup could not retrieve a public provider signature and is recorded as unavailable. The app therefore presents the run as Router-verified, not as independently SDK-verified.
+
+Human reviewers remain responsible for every payout decision.
+
+## Repository Hygiene
+
+- `.env` files are intentionally ignored.
+- Generated build outputs, Foundry cache, and local video assets are not part of the committed source snapshot.
+- Public project assets live in `apps/web/public/brand`.
+
+## Useful References
 
 - [0G Router overview](https://docs.0g.ai/developer-hub/building-on-0g/compute-network/router/overview)
 - [0G Router verifiable execution](https://docs.0g.ai/developer-hub/building-on-0g/compute-network/router/features/verifiable-execution)
